@@ -1,0 +1,8 @@
+//
+// Created by shai_tan on 04/06/26.
+//
+
+#ifndef MYCHESSENGINE_EVALUATE_H
+#define MYCHESSENGINE_EVALUATE_H
+
+#endif //MYCHESSENGINE_EVALUATE_H
