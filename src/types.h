@@ -1,6 +1,7 @@
 #pragma once
 // so that it is read only once
 #include  <bits/stdc++.h>
+using namespace std;
 typedef uint64_t U64;
 // The 64 squares of the board
 enum Square {
@@ -20,3 +21,14 @@ enum Color {
     black
 };
 // colors are assigned as 0 and 1 for white and black
+
+enum Piece {
+    P, N, B, R, Q, K, // White pieces (0 to 5)
+    p, n, b, r, q, k  // Black pieces (6 to 11)
+};
+
+// Castling rights (4 bits: bq bk wq wk)
+enum {
+    wss = 1, wl = 2, bs = 4, bl = 8
+};
+// shoert and long castle
