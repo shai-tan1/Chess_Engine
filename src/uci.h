@@ -1,8 +1,8 @@
-//
-// Created by shai_tan on 04/06/26.
-//
+#pragma once
+#include <string>
 
-#ifndef MYCHESSENGINE_UCI_H
-#define MYCHESSENGINE_UCI_H
+using namespace std;
 
-#endif //MYCHESSENGINE_UCI_H
+void uci_loop();
+int parse_move(const string& move_string);
+void print_move(int move);

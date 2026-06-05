@@ -31,4 +31,4 @@ enum Piece {
 enum {
     wss = 1, wl = 2, bs = 4, bl = 8
 };
-// shoert and long castle
+// short and long castle

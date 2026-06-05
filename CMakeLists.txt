@@ -21,4 +21,6 @@ add_executable(MyChessEngine
         src/tt.cpp
         src/uci.cpp
         src/search.cpp
+        src/perfit.h
+        src/perfit.cpp
 )

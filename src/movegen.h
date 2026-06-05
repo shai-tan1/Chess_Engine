@@ -1,8 +1,4 @@
-//
-// Created by shai_tan on 04/06/26.
-//
+#pragma once
+#include "move.h"
 
-#ifndef MYCHESSENGINE_MOVEGEN_H
-#define MYCHESSENGINE_MOVEGEN_H
-
-#endif //MYCHESSENGINE_MOVEGEN_H
+void generate_moves(MoveList *move_list);

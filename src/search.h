@@ -1,8 +1,8 @@
-//
-// Created by shai_tan on 04/06/26.
-//
+#pragma once
+#include "types.h"
 
-#ifndef MYCHESSENGINE_SEARCH_H
-#define MYCHESSENGINE_SEARCH_H
+// Global variable to store the best move found during calculation
+extern int best_move;
 
-#endif //MYCHESSENGINE_SEARCH_H
+// Entry point for the search engine. Returns the evaluation score of the best move.
+int search_position(int depth);

@@ -1,8 +1,9 @@
-//
-// Created by shai_tan on 04/06/26.
-//
+#pragma once
+#include "types.h"
+#include <string>
+using namespace std;
 
-#ifndef MYCHESSENGINE_BOARD_H
-#define MYCHESSENGINE_BOARD_H
-
-#endif //MYCHESSENGINE_BOARD_H
+void parse_fen(const string &fen);
+void print_board();
+void print_bitboard(const U64 bitboard);
+int parse_square(const string &sq);
