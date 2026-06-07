@@ -3,9 +3,7 @@
 #include "movegen.h"
 #include "search.h"
 #include "bitboard.h"
-#include <iostream>
-#include <sstream>
-
+#include <bits/stdc++.h>
 using namespace std;
 
 void print_move(int move) {
@@ -15,7 +13,7 @@ void print_move(int move) {
     string files = "abcdefgh";
     string ranks = "12345678";
     cout << files[source % 8] << ranks[source / 8] << files[target % 8] << ranks[target / 8];
-    
+
     int promoted = GET_MOVE_PROMOTED(move);
     if (promoted == Q || promoted == q) cout << 'q';
     if (promoted == R || promoted == r) cout << 'r';
@@ -81,7 +79,7 @@ void uci_loop() {
                 }
                 parse_fen(fen);
             }
-            
+
             // Replay the game history so the internal board matches the GUI board
             while (ss >> token) {
                 int move = parse_move(token);
@@ -89,7 +87,7 @@ void uci_loop() {
             }
         }
         else if (command == "go") {
-            int depth = 6; // Default depth
+            int depth = 6; // Back to exactly depth 6
             string token;
             while (ss >> token) {
                 if (token == "depth") {

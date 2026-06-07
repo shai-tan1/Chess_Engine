@@ -116,3 +116,65 @@ int parse_square(const string &sq) {
     const int row = sq[1] - '1';
     return row * 8 + col;
 }
+
+// --- ZOBRIST HASHING GLOBALS ---
+U64 piece_keys[12][64];
+U64 enpassant_keys[64];
+U64 castle_keys[16];
+U64 side_key;
+
+U64 game_history[1024];
+int history_ply = 0;
+
+// Fast random number generator
+unsigned int random_state = 1804289383;
+unsigned int get_random_U32() {
+    unsigned int number = random_state;
+    number ^= number << 13;
+    number ^= number >> 17;
+    number ^= number << 5;
+    random_state = number;
+    return number;
+}
+
+U64 get_random_U64() {
+    U64 n1 = (U64)(get_random_U32()) & 0xFFFF;
+    U64 n2 = (U64)(get_random_U32()) & 0xFFFF;
+    U64 n3 = (U64)(get_random_U32()) & 0xFFFF;
+    U64 n4 = (U64)(get_random_U32()) & 0xFFFF;
+    return n1 | (n2 << 16) | (n3 << 32) | (n4 << 48);
+}
+
+void init_random_keys() {
+    for (int piece = 0; piece < 12; piece++) {
+        for (int square = 0; square < 64; square++) {
+            piece_keys[piece][square] = get_random_U64();
+        }
+    }
+    for (int square = 0; square < 64; square++) {
+        enpassant_keys[square] = get_random_U64();
+    }
+    for (int i = 0; i < 16; i++) {
+        castle_keys[i] = get_random_U64();
+    }
+    side_key = get_random_U64();
+}
+
+U64 generate_hash_key() {
+    U64 final_key = 0ULL;
+    U64 bitboard;
+
+    for (int piece = 0; piece < 12; piece++) {
+        bitboard = bitboards[piece];
+        while (bitboard) {
+            int square = get_lsb_index(bitboard);
+            final_key ^= piece_keys[piece][square];
+            POP_BIT(bitboard, square);
+        }
+    }
+    if (enpassant != -1) final_key ^= enpassant_keys[enpassant];
+    final_key ^= castle_keys[castle];
+    if (side == black) final_key ^= side_key;
+
+    return final_key;
+}

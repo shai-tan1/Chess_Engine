@@ -7,6 +7,17 @@ U64 occupancies[3];
 int side = 0;
 int enpassant = -1; // -1 means no en passant square available
 int castle = 0;
+// Castling rights update mask
+const int castling_rights[64] = {
+    13, 15, 15, 15, 12, 15, 15, 14,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+     7, 15, 15, 15,  3, 15, 15, 11
+};
 
 U64 bitboards_copy[12];
 U64 occupancies_copy[3];
@@ -234,18 +245,9 @@ bool make_move(const int move) {
     else if (piece_to_move == p && target == source - 16) enpassant = source - 8;
     else enpassant = -1;
 
-    // 9. UPDATE CASTLING RIGHTS
-    // If a King moves, strip both of its castling rights.
-    if (piece_to_move == K) castle &= ~(wss | wl);
-    if (piece_to_move == k) castle &= ~(bs | bl);
-
-    // If a Rook moves (or is captured!), strip that specific side's castling right.
-    if (source == h1 || target == h1) castle &= ~wss;
-    if (source == a1 || target == a1) castle &= ~wl;
-    if (source == h8 || target == h8) castle &= ~bs;
-    if (source == a8 || target == a8) castle &= ~bl;
-    // (Note: To be fully complete, enpassant and castle rights need to update here based on the move,
-    // but this is enough to test the physics!)
+    // 9. UPDATE CASTLING RIGHTS (Fixed Logic)
+    castle &= castling_rights[source];
+    castle &= castling_rights[target];
 
     // 10. CHANGE TURNS
     side = (side == white) ? black : white;

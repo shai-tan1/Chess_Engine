@@ -3,7 +3,7 @@
 #include "bitboard.h"
 #include "evaluate.h"
 #include <cstring>
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 
 using namespace std;
 
@@ -34,8 +34,6 @@ int score_move(int move) {
             }
         }
 
-        // Example: Pawn taking Queen = 900 - 10 = massive score.
-        // Queen taking Pawn = 100 - 90 = low score.
         score += 5000 + abs(material_score[victim]) - (abs(material_score[attacker]) / 10);
     }
 
@@ -44,6 +42,7 @@ int score_move(int move) {
 
 // --- 2. RECURSIVE ALPHA-BETA WORKER ---
 int alpha_beta(int alpha, int beta, int depth) {
+
     // Base Case: Leaf node reached
     if (depth == 0) {
         return evaluate_position();
