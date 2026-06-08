@@ -3,7 +3,10 @@
 #include "movegen.h"
 #include "search.h"
 #include "bitboard.h"
-#include <bits/stdc++.h>
+#include "tt.h" // <--- The Transposition Table Header
+#include <iostream>
+#include <sstream>
+
 using namespace std;
 
 void print_move(int move) {
@@ -45,14 +48,18 @@ int parse_move(const string& move_string) {
             return move;
         }
     }
-    return 0; // Return 0 if the GUI sends an illegal move
+    return 0;
 }
 
 void uci_loop() {
-    // Identity protocol for the GUI
-    cout << "id name MyChessEngine\n";
+    // Identity protocol
+    cout << "id name MyChessEngine v2.0\n";
     cout << "id author Shaunak Samanta\n";
     cout << "uciok\n";
+
+    // --- TURN ON THE TT AND HASHING ---
+    init_random_keys();
+    init_tt(64); // Allocate 64MB of RAM for the brain!
 
     string line;
     while (getline(cin, line)) {
@@ -71,33 +78,54 @@ void uci_loop() {
             ss >> token;
             if (token == "startpos") {
                 parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-                ss >> token; // read the "moves" string if it exists
+                history_ply = 0; // Reset history for repetitions
+                ss >> token;
             } else if (token == "fen") {
                 string fen = "";
                 while (ss >> token && token != "moves") {
                     fen += token + " ";
                 }
                 parse_fen(fen);
+                history_ply = 0; // Reset history for repetitions
             }
 
-            // Replay the game history so the internal board matches the GUI board
+            // Replay the game history
             while (ss >> token) {
                 int move = parse_move(token);
-                if (move) make_move(move);
+                if (move) {
+                    make_move(move);
+                    game_history[history_ply++] = generate_hash_key();
+                }
             }
         }
         else if (command == "go") {
-            int depth = 6; // Back to exactly depth 6
+            int depth = 64; // Set a massive theoretical depth. The clock will stop it!
+            long long time_to_think = 5000; // Default 5 seconds if playing without a clock
+
             string token;
             while (ss >> token) {
                 if (token == "depth") {
-                    ss >> depth; // If GUI requests a specific depth, use it!
+                    ss >> depth;
+                }
+                else if (token == "wtime" && side == white) {
+                    long long wtime; ss >> wtime;
+                    time_to_think = wtime / 30; // Allocate 1/30th of remaining time
+                }
+                else if (token == "btime" && side == black) {
+                    long long btime; ss >> btime;
+                    time_to_think = btime / 30; // Allocate 1/30th of remaining time
+                }
+                else if (token == "movetime") {
+                    ss >> time_to_think;
                 }
             }
-            
-            search_position(depth);
-            
-            // Standard UCI response for the GUI to read
+
+            // Safety buffer: drop 50ms so it doesn't flag due to internet lag
+            if (time_to_think > 100) time_to_think -= 50;
+
+            // LAUNCH THE TIME-MANAGED SEARCH
+            iterative_deepening(depth, time_to_think);
+
             cout << "bestmove ";
             print_move(best_move);
             cout << "\n";
