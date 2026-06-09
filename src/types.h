@@ -1,9 +1,12 @@
 #pragma once
-// so that it is read only once
-#include  <bits/stdc++.h>
+// #pragma once ensures this header is only included once during compilation
+#include <bits/stdc++.h>
 using namespace std;
-typedef uint64_t U64;
-// The 64 squares of the board
+typedef uint64_t U64; // Creates a shorthand for 64-bit unsigned integers
+
+// --- SQUARES ---
+// Maps the 64 squares of the board to indices 0 through 63.
+// a1 is assigned 0, b1 is 1, all the way to h8 which is 63.
 enum Square {
     a1, b1, c1, d1, e1, f1, g1, h1,
     a2, b2, c2, d2, e2, f2, g2, h2,
@@ -14,21 +17,25 @@ enum Square {
     a7, b7, c7, d7, e7, f7, g7, h7,
     a8, b8, c8, d8, e8, f8, g8, h8
 };
-//a1 assigned as 0,b1 as 1 and so on
 
+// --- COLORS ---
+// Colors are assigned as 0 for white and 1 for black.
+// This allows us to use bitwise XOR (^ 1) to easily swap turns.
 enum Color {
     white,
     black
 };
-// colors are assigned as 0 and 1 for white and black
 
+// --- PIECES ---
+// Unique identifiers for all 12 piece types.
+// Capital letters for White (0-5), lowercase for Black (6-11).
 enum Piece {
-    P, N, B, R, Q, K, // White pieces (0 to 5)
-    p, n, b, r, q, k  // Black pieces (6 to 11)
+    P, N, B, R, Q, K,
+    p, n, b, r, q, k
 };
 
-// Castling rights (4 bits: bq bk wq wk)
+// --- CASTLING RIGHTS ---
+// Uses bits to track castling. 1 = White Short, 2 = White Long, 4 = Black Short, 8 = Black Long
 enum {
     wss = 1, wl = 2, bs = 4, bl = 8
 };
-// short and long castle

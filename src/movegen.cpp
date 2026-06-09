@@ -14,9 +14,9 @@ void generate_moves(MoveList *move_list) {
         const int source = get_lsb_index(pawn_bitboard);
 
         if (side == white) {
-            // A. Single Push
+            // A. Single Push (+8 squares)
             if (const int target = source + 8; target <= h8 && !GET_BIT(occupancies[2], target)) {
-                // Promotion Check
+                // Promotion Check (If reaching rank 8)
                 if (source >= a7 && source <= h7) {
                     add_move(move_list, ENCODE_MOVE(source, target, P, Q, 0, 0, 0, 0));
                     add_move(move_list, ENCODE_MOVE(source, target, P, R, 0, 0, 0, 0));
@@ -24,7 +24,7 @@ void generate_moves(MoveList *move_list) {
                     add_move(move_list, ENCODE_MOVE(source, target, P, N, 0, 0, 0, 0));
                 } else {
                     add_move(move_list, ENCODE_MOVE(source, target, P, 0, 0, 0, 0, 0));
-                    // B. Double Push
+                    // B. Double Push (+16 squares from starting rank)
                     if (source >= a2 && source <= h2) {
                         if (const int double_target = source + 16; !GET_BIT(occupancies[2], double_target)) {
                             add_move(move_list, ENCODE_MOVE(source, double_target, P, 0, 0, 1, 0, 0));
@@ -32,7 +32,7 @@ void generate_moves(MoveList *move_list) {
                     }
                 }
             }
-            // C. Pawn Captures
+            // C. Pawn Captures (Diagonal masking)
             U64 attacks = mask_pawn_attacks(white, source) & occupancies[black];
             while (attacks > 0) {
                 const int cap_target = get_lsb_index(attacks);
@@ -47,7 +47,7 @@ void generate_moves(MoveList *move_list) {
                 }
                 POP_BIT(attacks, cap_target);
             }
-            // D. En Passant
+            // D. En Passant (Special capture logic)
             if (enpassant != -1 && source >= a5 && source <= h5) {
                 if (const U64 ep_attacks = mask_pawn_attacks(white, source) & (1ULL << enpassant); ep_attacks > 0) {
                     add_move(move_list, ENCODE_MOVE(source, enpassant, P, 0, 1, 0, 1, 0));
@@ -55,7 +55,7 @@ void generate_moves(MoveList *move_list) {
             }
         }
         else { // BLACK PAWN LOGIC
-            // A. Single Push
+            // A. Single Push (-8 squares)
             if (const int target = source - 8; target >= a1 && !GET_BIT(occupancies[2], target)) {
                 if (source >= a2 && source <= h2) {
                     add_move(move_list, ENCODE_MOVE(source, target, p, q, 0, 0, 0, 0));
@@ -64,7 +64,7 @@ void generate_moves(MoveList *move_list) {
                     add_move(move_list, ENCODE_MOVE(source, target, p, n, 0, 0, 0, 0));
                 } else {
                     add_move(move_list, ENCODE_MOVE(source, target, p, 0, 0, 0, 0, 0));
-                    // B. Double Push
+                    // B. Double Push (-16 squares)
                     if (source >= a7 && source <= h7) {
                         if (const int double_target = source - 16; !GET_BIT(occupancies[2], double_target)) {
                             add_move(move_list, ENCODE_MOVE(source, double_target, p, 0, 0, 1, 0, 0));

@@ -205,9 +205,11 @@ int main() {
     //         cout << "\n>>> ILLEGAL MOVE! (Leaves King in check). Try again.\n";
     //     }
     // }
+    // Initialize the standard starting position
     parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-    // 2. Start the Universal Chess Interface Loop
+    // Start the Universal Chess Interface Loop
+    // This function will run indefinitely, waiting for commands from Python
     uci_loop();
 
     return 0;

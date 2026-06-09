@@ -26,6 +26,7 @@ long long get_time_ms() {
     return chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
 }
 
+// Periodically checks if the Lichess clock has run out of time
 void check_time() {
     if (time_over) return;
     if (get_time_ms() - start_time > allocated_time) {
@@ -34,15 +35,16 @@ void check_time() {
 }
 
 // --- ADVANCED MOVE ORDERING ---
+// Assigns a priority score to every move so Alpha-Beta can search the best ones first
 int score_move(int move, int tt_move, int depth) {
-    // 1. Transposition Table Move (Highest Priority)
+    // 1. Transposition Table Move (Highest Priority: +30,000)
     if (move == tt_move) return 30000;
 
     int promoted = GET_MOVE_PROMOTED(move);
-    // 2. Promotions (Queen promotions are game-winning)
+    // 2. Promotions (Queen promotions are game-winning: +20,000)
     if (promoted) return 20000 + abs(material_score[promoted]);
 
-    // 3. Captures (MVV-LVA)
+    // 3. Captures (MVV-LVA: Most Valuable Victim - Least Valuable Attacker)
     if (GET_MOVE_CAPTURE(move)) {
         int target = GET_MOVE_TARGET(move);
         int attacker = GET_MOVE_PIECE(move);
@@ -65,20 +67,26 @@ int score_move(int move, int tt_move, int depth) {
 }
 
 // --- ALPHA-BETA SEARCH ---
+// The recursive Negamax loop.
 int alpha_beta(int alpha, int beta, int depth) {
+    // Check the clock every 2048 nodes
     if ((nodes_visited++ & 2047) == 0) check_time();
     if (time_over) return 0;
 
     // --- PROBE TRANSPOSITION TABLE ---
+    // If we've seen this exact position before at this depth, skip the calculation entirely!
     int tt_move = 0;
     int tt_score = read_tt(depth, alpha, beta, &tt_move);
     if (tt_score != -1000000) {
         return tt_score;
     }
 
+    // Base Case: We hit the depth limit, statically evaluate the board
     if (depth == 0) return evaluate_position();
 
     // --- NULL MOVE PRUNING (NMP) ---
+    // If our position is so overwhelmingly crushing that we could skip our turn and STILL
+    // beat the beta cutoff, prune this branch instantly.
     int current_king = get_lsb_index(bitboards[side == white ? K : k]);
     if (depth >= 3 && !is_square_attacked(current_king, side ^ 1)) {
         int non_pawn_material = count_bits(bitboards[side == white ? Q : q]) +
@@ -86,14 +94,15 @@ int alpha_beta(int alpha, int beta, int depth) {
                                 count_bits(bitboards[side == white ? B : b]) +
                                 count_bits(bitboards[side == white ? N : n]);
 
-        if (non_pawn_material > 0) {
+        if (non_pawn_material > 0) { // Prevents "Zugzwang" bugs in pawn-only endgames
             int ep_copy = enpassant;
-            side ^= 1;
+            side ^= 1; // "Pass" the turn to the opponent
             enpassant = -1;
 
+            // Shallow search with a depth reduction of 2
             int nmp_score = -alpha_beta(-beta, -beta + 1, depth - 1 - 2);
 
-            side ^= 1;
+            side ^= 1; // Un-pass the turn
             enpassant = ep_copy;
 
             if (nmp_score >= beta) return beta; // Prune!
@@ -104,7 +113,7 @@ int alpha_beta(int alpha, int beta, int depth) {
     generate_moves(&move_list);
     int legal_moves_count = 0;
 
-    // Score moves using TT, Killers, and History
+    // Score all generated moves using TT, Killers, and History
     for (int i = 0; i < move_list.count; i++) {
         move_list.scores[i] = score_move(move_list.moves[i], tt_move, depth);
     }
@@ -114,6 +123,7 @@ int alpha_beta(int alpha, int beta, int depth) {
     int best_move_this_node = 0;
 
     for (int i = 0; i < move_list.count; i++) {
+        // Selection Sort: Bring the move with the highest score to the front
         int best_score_index = i;
         for (int j = i + 1; j < move_list.count; j++) {
             if (move_list.scores[j] > move_list.scores[best_score_index]) best_score_index = j;
@@ -121,21 +131,24 @@ int alpha_beta(int alpha, int beta, int depth) {
         int temp_move = move_list.moves[i]; move_list.moves[i] = move_list.moves[best_score_index]; move_list.moves[best_score_index] = temp_move;
         int temp_score = move_list.scores[i]; move_list.scores[i] = move_list.scores[best_score_index]; move_list.scores[best_score_index] = temp_score;
 
+        // Save State
         U64 local_bitboards[12], local_occupancies[3];
         int local_side = side, local_enpassant = enpassant, local_castle = castle;
         memcpy(local_bitboards, bitboards, 96);
         memcpy(local_occupancies, occupancies, 24);
 
-        if (!make_move(move_list.moves[i])) continue;
+        if (!make_move(move_list.moves[i])) continue; // Skip illegal moves
         legal_moves_count++;
 
+        // Recursive call
         int score = -alpha_beta(-beta, -alpha, depth - 1);
 
+        // Restore State
         memcpy(bitboards, local_bitboards, 96);
         memcpy(occupancies, local_occupancies, 24);
         side = local_side; enpassant = local_enpassant; castle = local_castle;
 
-        if (time_over) return 0;
+        if (time_over) return 0; // Emergency brake
 
         if (score > best_score) {
             best_score = score;
@@ -143,9 +156,10 @@ int alpha_beta(int alpha, int beta, int depth) {
         }
         if (score > alpha) {
             alpha = score;
-            hash_flag = HASH_EXACT;
+            hash_flag = HASH_EXACT; // We found a move that improves our position
         }
         if (alpha >= beta) {
+            // Fail-high (Beta cutoff): The opponent won't allow this line. Stop searching.
             write_tt(depth, beta, HASH_BETA, move_list.moves[i]);
 
             // --- SAVE KILLER AND HISTORY MOVES ---
@@ -154,24 +168,27 @@ int alpha_beta(int alpha, int beta, int depth) {
                 killer_moves[1][depth] = killer_moves[0][depth];
                 killer_moves[0][depth] = move_list.moves[i];
 
-                // Reward history based on search depth (deeper cutoffs are more valuable)
+                // Reward history based on search depth (deeper cutoffs are mathematically more valuable)
                 history_moves[GET_MOVE_PIECE(move_list.moves[i])][GET_MOVE_TARGET(move_list.moves[i])] += depth * depth;
             }
             return beta;
         }
     }
 
+    // Terminal State Processing (Checkmate or Stalemate)
     if (legal_moves_count == 0) {
         int king_sq = get_lsb_index(bitboards[side == white ? K : k]);
-        if (is_square_attacked(king_sq, side ^ 1)) return -100000 - depth;
-        else return 0;
+        if (is_square_attacked(king_sq, side ^ 1)) return -100000 - depth; // Mate (Penalize deeper mates)
+        else return 0; // Draw
     }
 
+    // Save the result to the Transposition Table so we don't have to calculate it again later
     write_tt(depth, best_score, hash_flag, best_move_this_node);
     return best_score;
 }
 
 // --- ROOT SEARCH ---
+// Special logic for the very first move ply (Handles repetition checks and global best_move)
 int search_root(int depth) {
     int tt_move = 0;
     read_tt(depth, -500000, 500000, &tt_move);
@@ -204,8 +221,9 @@ int search_root(int depth) {
 
         if (!make_move(move_list.moves[i])) continue;
 
-        if (current_best_move == 0) current_best_move = move_list.moves[i];
+        if (current_best_move == 0) current_best_move = move_list.moves[i]; // Fallback safety move
 
+        // 3-Fold Repetition Detection
         bool is_repetition = false;
         U64 current_hash = generate_hash_key();
         for (int h = 0; h < history_ply; h++) {
@@ -216,7 +234,7 @@ int search_root(int depth) {
         }
 
         int score;
-        if (is_repetition) score = 0;
+        if (is_repetition) score = 0; // Punish the draw
         else score = -alpha_beta(-beta, -alpha, depth - 1);
 
         memcpy(bitboards, local_bitboards, 96);
@@ -243,6 +261,7 @@ int search_root(int depth) {
 }
 
 // --- ITERATIVE DEEPENING LOOP ---
+// Drives the search by going ply-by-ply (Depth 1, 2, 3...) until time runs out
 void iterative_deepening(int max_depth, long long max_time_ms) {
     start_time = get_time_ms();
     allocated_time = max_time_ms;
@@ -255,14 +274,17 @@ void iterative_deepening(int max_depth, long long max_time_ms) {
 
     int absolute_best_move = 0;
 
+    // Fast search at depth 1 to lock in at least one valid move
     search_root(1);
     if (best_move != 0) absolute_best_move = best_move;
 
+    // Deepen the search iteratively
     for (int d = 2; d <= max_depth; d++) {
         search_root(d);
-        if (time_over) break;
+        if (time_over) break; // If we ran out of time, discard this depth!
         if (best_move != 0) absolute_best_move = best_move;
 
+        // Print engine thought process to the terminal/Lichess GUI
         cout << "info depth " << d << " time " << (get_time_ms() - start_time) << " nodes " << nodes_visited << "\n";
     }
 

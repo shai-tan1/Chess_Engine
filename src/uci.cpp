@@ -3,12 +3,13 @@
 #include "movegen.h"
 #include "search.h"
 #include "bitboard.h"
-#include "tt.h" // <--- The Transposition Table Header
+#include "tt.h"
 #include <iostream>
 #include <sstream>
 
 using namespace std;
 
+// Translates our internal 32-bit move integer back into standard algebra (e.g. "e2e4")
 void print_move(int move) {
     if (move == 0) return;
     int source = GET_MOVE_SOURCE(move);
@@ -17,6 +18,7 @@ void print_move(int move) {
     string ranks = "12345678";
     cout << files[source % 8] << ranks[source / 8] << files[target % 8] << ranks[target / 8];
 
+    // Handle promotions
     int promoted = GET_MOVE_PROMOTED(move);
     if (promoted == Q || promoted == q) cout << 'q';
     if (promoted == R || promoted == r) cout << 'r';
@@ -24,6 +26,7 @@ void print_move(int move) {
     if (promoted == N || promoted == n) cout << 'n';
 }
 
+// Translates standard algebra (e.g. "e2e4") into our internal 32-bit move integer
 int parse_move(const string& move_string) {
     MoveList move_list;
     generate_moves(&move_list);
@@ -48,9 +51,10 @@ int parse_move(const string& move_string) {
             return move;
         }
     }
-    return 0;
+    return 0; // Return 0 if the GUI sends an illegal move
 }
 
+// The infinite loop that keeps the engine alive and listening to Lichess
 void uci_loop() {
     // Identity protocol
     cout << "id name MyChessEngine v2.0\n";
@@ -68,7 +72,7 @@ void uci_loop() {
         ss >> command;
 
         if (command == "isready") {
-            cout << "readyok\n";
+            cout << "readyok\n"; // Confirms the engine hasn't crashed
         }
         else if (command == "ucinewgame") {
             parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -89,7 +93,7 @@ void uci_loop() {
                 history_ply = 0; // Reset history for repetitions
             }
 
-            // Replay the game history
+            // Replay the game history to sync internal board with GUI board
             while (ss >> token) {
                 int move = parse_move(token);
                 if (move) {
@@ -116,7 +120,7 @@ void uci_loop() {
                     time_to_think = btime / 30; // Allocate 1/30th of remaining time
                 }
                 else if (token == "movetime") {
-                    ss >> time_to_think;
+                    ss >> time_to_think; // Hard-coded time limit from GUI
                 }
             }
 
@@ -126,12 +130,13 @@ void uci_loop() {
             // LAUNCH THE TIME-MANAGED SEARCH
             iterative_deepening(depth, time_to_think);
 
+            // Send the final answer back to Lichess
             cout << "bestmove ";
             print_move(best_move);
             cout << "\n";
         }
         else if (command == "quit") {
-            break;
+            break; // Kills the engine
         }
     }
 }

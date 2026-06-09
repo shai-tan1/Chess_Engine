@@ -5,12 +5,14 @@ int evaluate_position() {
     int score = 0;
 
     // --- 1. MATERIAL EVALUATION ---
+    // Count all pieces on the board and add their material value to the score
     for (int piece = P; piece <= k; piece++) {
         int piece_count = count_bits(bitboards[piece]);
         score += piece_count * material_score[piece];
     }
 
-    // --- 2. POSITIONAL EVALUATION ---
+    // --- 2. POSITIONAL EVALUATION (Piece-Square Tables) ---
+    // For every piece on the board, check where it is standing and add/subtract its positional bonus
     U64 bitboard_copy;
     int square;
 
@@ -18,13 +20,13 @@ int evaluate_position() {
     bitboard_copy = bitboards[P];
     while (bitboard_copy) {
         square = get_lsb_index(bitboard_copy);
-        score += pawn_pst[square];
+        score += pawn_pst[square]; // White pawns read the table normally
         POP_BIT(bitboard_copy, square);
     }
     bitboard_copy = bitboards[p];
     while (bitboard_copy) {
         square = get_lsb_index(bitboard_copy);
-        score -= pawn_pst[square ^ 56];
+        score -= pawn_pst[square ^ 56]; // Black pawns mirror the table vertically
         POP_BIT(bitboard_copy, square);
     }
 
@@ -70,7 +72,7 @@ int evaluate_position() {
         POP_BIT(bitboard_copy, square);
     }
 
-    // Kings (This fixes the castling avoidance!)
+    // Kings
     bitboard_copy = bitboards[K];
     while (bitboard_copy) {
         square = get_lsb_index(bitboard_copy);
@@ -84,5 +86,7 @@ int evaluate_position() {
         POP_BIT(bitboard_copy, square);
     }
 
+    // Negamax Framework: Always return the score relative to the side whose turn it is.
+    // If Black is winning (score = -500) and it is Black's turn, return +500.
     return (side == white) ? score : -score;
 }

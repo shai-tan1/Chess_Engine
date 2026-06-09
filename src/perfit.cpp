@@ -6,9 +6,9 @@
 
 using namespace std;
 
-// This is the recursive worker function
+// This is the recursive worker function that explores every branch
 long long perft_driver(int depth) {
-    if (depth == 0) return 1;
+    if (depth == 0) return 1; // Base case: 1 position found
 
     MoveList move_list;
     generate_moves(&move_list);

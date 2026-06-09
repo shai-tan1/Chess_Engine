@@ -5,12 +5,11 @@
 #include <bitset>
 using namespace std;
 
+// Visually prints the current board state to the terminal
 void print_board() {
     cout << "\n";
-
     for (int row = 7; row >= 0; row--) {
         for (int col = 0; col <= 7; col++) {
-            // White: P, N, B, R, Q, K | Black: p, n, b, r, q, k
             constexpr char pieces[12] = {'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'};
             const int square = row * 8 + col;
 
@@ -23,7 +22,6 @@ void print_board() {
                     break;
                 }
             }
-
             if (piece == -1) cout << ". ";
             else cout << pieces[piece] << " ";
         }
@@ -33,26 +31,15 @@ void print_board() {
     cout << "Side to move: " << (side == white ? "White" : "Black") << "\n";
 }
 
+// Prints a single 64-bit integer as a grid of 1s and 0s (Very useful for debugging)
 void print_bitboard(const U64 bitboard) {
     cout << "\n";
-    // 0 is white all the way upto 7 is black
-    // start printing from the top row
     for (int row = 7; row >= 0; row--) {
         for (int col = 0; col <= 7; col++) {
             const int square = row * 8 + col;
-            // each square is marked as
-            // 56 57 .... 63
-            //  . .
-            // 0 1 2 ... 8
-            // print the row number
             if (col == 0) cout << row + 1 << "  ";
-            // then start printing whether there are any pieces in this square
-            if (GET_BIT(bitboard, square)) {
-                cout << "1 ";
-            }
-            else {
-                cout << ". ";
-            }
+            if (GET_BIT(bitboard, square)) cout << "1 ";
+            else cout << ". ";
         }
         cout << "\n";
     }
@@ -61,6 +48,7 @@ void print_bitboard(const U64 bitboard) {
     cout << "Binary:  " << bitset<64>(bitboard) << "\n";
 }
 
+// Parses a Forsyth-Edwards Notation (FEN) string to load a specific board state
 void parse_fen(const string &fen) {
     memset(bitboards, 0ULL, sizeof(bitboards));
     memset(occupancies, 0ULL, sizeof(occupancies));
@@ -70,6 +58,7 @@ void parse_fen(const string &fen) {
 
     int row = 7, col = 0, i = 0;
 
+    // 1. Parse Piece Placement
     while (fen[i] != ' ') {
         if (const char c = fen[i]; (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
             int piece = -1;
@@ -81,14 +70,17 @@ void parse_fen(const string &fen) {
             SET_BIT(bitboards[piece], (row * 8 + col));
             col++;
         }
-        else if (c >= '1' && c <= '8') col += (c - '0');
-        else if (c == '/') { row--; col = 0; }
+        else if (c >= '1' && c <= '8') col += (c - '0'); // Empty squares
+        else if (c == '/') { row--; col = 0; }           // Next rank
         i++;
     }
     i++;
+
+    // 2. Parse Side to Move
     side = (fen[i] == 'w') ? white : black;
     i += 2;
 
+    // 3. Parse Castling Rights
     while (fen[i] != ' ') {
         if (fen[i] == 'K') castle |= wss;
         else if (fen[i] == 'Q') castle |= wl;
@@ -98,6 +90,8 @@ void parse_fen(const string &fen) {
         i++;
     }
     i++;
+
+    // 4. Parse En Passant Square
     if (fen[i] == '-') {
         enpassant = -1;
     }
@@ -106,11 +100,14 @@ void parse_fen(const string &fen) {
         const int ep_row = fen[i + 1] - '1';
         enpassant = ep_row * 8 + ep_col;
     }
+
+    // 5. Update Occupancy Bitboards
     for (int j = P; j <= K; j++) occupancies[white] |= bitboards[j];
     for (int j = p; j <= k; j++) occupancies[black] |= bitboards[j];
     occupancies[2] = occupancies[white] | occupancies[black];
 }
 
+// Converts a string like "e2" into a square index (12)
 int parse_square(const string &sq) {
     const int col = sq[0] - 'a';
     const int row = sq[1] - '1';
@@ -126,7 +123,7 @@ U64 side_key;
 U64 game_history[1024];
 int history_ply = 0;
 
-// Fast random number generator
+// Fast random number generator for generating the hash keys
 unsigned int random_state = 1804289383;
 unsigned int get_random_U32() {
     unsigned int number = random_state;
@@ -137,6 +134,7 @@ unsigned int get_random_U32() {
     return number;
 }
 
+// Combines 32-bit randoms into a 64-bit random number
 U64 get_random_U64() {
     U64 n1 = (U64)(get_random_U32()) & 0xFFFF;
     U64 n2 = (U64)(get_random_U32()) & 0xFFFF;
@@ -145,6 +143,7 @@ U64 get_random_U64() {
     return n1 | (n2 << 16) | (n3 << 32) | (n4 << 48);
 }
 
+// Fills the Zobrist arrays with random numbers on engine startup
 void init_random_keys() {
     for (int piece = 0; piece < 12; piece++) {
         for (int square = 0; square < 64; square++) {
@@ -160,6 +159,8 @@ void init_random_keys() {
     side_key = get_random_U64();
 }
 
+// Generates a unique 64-bit ID representing the current board state
+// Uses XOR (^) so that placing a piece and then removing it perfectly reverses the hash
 U64 generate_hash_key() {
     U64 final_key = 0ULL;
     U64 bitboard;
